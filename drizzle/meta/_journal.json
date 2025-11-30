@@ -8,6 +8,13 @@
       "when": 1764440032100,
       "tag": "0000_cheerful_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1764503336130,
+      "tag": "0001_first_guardsmen",
+      "breakpoints": true
     }
   ]
 }
