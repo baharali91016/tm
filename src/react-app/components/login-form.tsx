@@ -15,9 +15,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Link } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 
 const formSchema = z.object({
-  email: z.string().email({
+  email: z.email({
     message: "Please enter a valid email address.",
   }),
   password: z.string().min(1, {
@@ -37,27 +38,41 @@ export function LoginForm({
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      await signIn.email({
+  const { mutate } = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const { data, error } = await signIn.email({
         email: values.email,
         password: values.password,
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data;
+    },
+    onSuccess: () => {
       toast.success("Logged in successfully");
-    } catch {
-      toast.error("Login failed");
-    }
+    },
+    onError(error) {
+      console.error(error);
+      toast.error(error.message || "Login failed");
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    mutate(values);
   };
 
-  const handleGitHubSignIn = async () => {
-    try {
-      await signIn.social({
-        provider: "github",
-      });
-    } catch {
-      toast.error("GitHub login failed");
-    }
-  };
+  // const handleGitHubSignIn = async () => {
+  //   try {
+  //     await signIn.social({
+  //       provider: "github",
+  //     });
+  //   } catch {
+  //     toast.error("GitHub login failed");
+  //   }
+  // };
 
   return (
     <Form {...form}>
@@ -107,7 +122,7 @@ export function LoginForm({
           )}
         />
         <Button type="submit">Login</Button>
-        <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+        {/* <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
           <span className="relative z-10 bg-background px-2 text-muted-foreground">
             Or continue with
           </span>
@@ -120,7 +135,7 @@ export function LoginForm({
             />
           </svg>
           Login with GitHub
-        </Button>
+        </Button> */}
         <div className="text-center text-sm">
           Don&apos;t have an account?{" "}
           <Link to="/sign-up" className="underline underline-offset-4">

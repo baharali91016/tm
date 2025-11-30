@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Link } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 
 const formSchema = z
   .object({
@@ -48,17 +49,31 @@ export function SignUpForm({
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      await signUp.email({
+  const { mutate } = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const { data, error } = await signUp.email({
         email: values.email,
         password: values.password,
         name: values.name,
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data;
+    },
+    onSuccess: () => {
       toast.success("Account created successfully");
-    } catch {
-      toast.error("Sign up failed");
-    }
+    },
+    onError(error) {
+      console.error(error);
+      toast.error(error.message || "Sign up failed");
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    mutate(values);
   };
 
   return (

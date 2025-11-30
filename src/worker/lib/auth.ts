@@ -89,6 +89,13 @@ export const getAuth = (env: Env) => {
         hash: hashPassword,
         verify: async ({ password, hash }) => verifyPassword(password, hash),
       },
+      sendResetPassword: async ({ user, token, url }) => {
+        // TODO: Implement email sending functionality
+        // For now, just log the reset URL
+        const origin = new URL(url).origin;
+        const resetUrl = `${origin}/reset-password/${token}`;
+        console.log(`Password reset URL for ${user.email}: ${resetUrl}`);
+      },
     },
   });
 };
