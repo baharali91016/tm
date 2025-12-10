@@ -12,6 +12,17 @@ import "./index.css";
 import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 
+import { ThemeProvider } from "./components/theme-provider";
+
+function App({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      {children}
+    </ThemeProvider>
+  );
+}
+export default App;
+
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
@@ -45,10 +56,13 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <Toaster />
-      </QueryClientProvider>
+       <App>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+          <Toaster />
+        </QueryClientProvider>
+      </App>
+
     </StrictMode>
   );
 }
