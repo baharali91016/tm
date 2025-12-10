@@ -2,9 +2,7 @@
 
 A full-stack Task Manager application built as part of the **Advanced Full Stack Development & Software Testing** course. This project demonstrates modern web development practices using React, Hono, and Cloudflare Workers.
 
-🌐 **Live Demo:** [https://tm.ehtishamsajjad.com/](https://tm.ehtishamsajjad.com/)
-
-📚 **Course Documentation:** [AFST Course](https://github.com/ehtishamsajjad/afst)
+🌐 **Live Demo:** [https://tm.baharali.workers.dev/](https://tm.baharali.workers.dev/)
 
 ## ✨ Features
 
