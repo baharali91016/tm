@@ -18,6 +18,11 @@ import { useTagsQuery } from "@/hooks/use-tags-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useState } from "react";
+import { QueryKeys } from "@/constants/query-keys";
+import { APIEndpoints } from "@/constants/api-endpoints";
 
 interface CreateTaskFormProps {
   onSuccess: () => void;
@@ -102,32 +107,84 @@ export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
   );
 }
 
-  function TagsSelector({ form }: { form: UseFormReturn<any> }) {
-    const { data } = useTagsQuery();
-    const tags = data?.tags ?? [];
+function TagsSelector({ form }: { form: UseFormReturn<any> }) {
+  const { data, isPending } = useTagsQuery();
+  const [tagName, setTagName] = useState("");
+  const queryClient = useQueryClient();
+  const tags = data?.tags ?? [];
 
-    const values: string[] = form.getValues("tags") ?? [];
+  const createTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await api.post(APIEndpoints.Tags, { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Tags] });
+      setTagName("");
+      toast.success("Tag created successfully");
+    },
+    onError: () => {
+      toast.error("Failed to create tag");
+    },
+  });
 
-    return (
-      <div className="flex gap-2 flex-wrap">
-        {tags.map((t) => {
-          const checked = values.includes(t.id);
-          return (
-            <label key={t.id} className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                value={t.id}
-                checked={checked}
-                onChange={(e) => {
-                  const selected = form.getValues("tags") ?? [];
-                  if (e.target.checked) form.setValue("tags", [...selected, t.id]);
-                  else form.setValue("tags", selected.filter((id: string) => id !== t.id));
-                }}
-              />
-              <span>{t.name}</span>
-            </label>
-          );
-        })}
-      </div>
-    );
+  const values: string[] = form.getValues("tags") ?? [];
+
+  const handleCreateTag = () => {
+    if (tagName.trim()) {
+      createTagMutation.mutate(tagName.trim());
+    }
+  };
+
+  if (isPending) {
+    return <div className="text-sm text-muted-foreground">Loading tags...</div>;
   }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {tags.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {tags.map((t) => {
+            const checked = values.includes(t.id);
+            return (
+              <label key={t.id} className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  value={t.id}
+                  checked={checked}
+                  onChange={(e) => {
+                    const selected = form.getValues("tags") ?? [];
+                    if (e.target.checked) form.setValue("tags", [...selected, t.id]);
+                    else form.setValue("tags", selected.filter((id: string) => id !== t.id));
+                  }}
+                />
+                <span className="text-sm">{t.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <Input
+            placeholder="New tag name"
+            value={tagName}
+            onChange={(e) => setTagName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
+            disabled={createTagMutation.isPending}
+            className="h-8"
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handleCreateTag}
+          disabled={!tagName.trim() || createTagMutation.isPending}
+        >
+          {createTagMutation.isPending ? "Adding..." : "Add Tag"}
+        </Button>
+      </div>
+    </div>
+  );
+}

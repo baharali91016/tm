@@ -68,15 +68,23 @@ app.get("/api/tasks", async (c) => {
 
   const tasksWithTags = await Promise.all(
     tasks.map(async (t: any) => {
-      const tagRows = await db
+      // Get all tag IDs for this task
+      const taskTags = await db
         .select()
         .from(taskTag)
-        .innerJoin(tag, eq(taskTag.tagId, tag.id))
         .where(eq(taskTag.taskId, t.id));
-      const tagsForTask = tagRows.map((r: any) => {
-        const joinedTag = Array.isArray(r) ? r[1] : r;
-        return { id: joinedTag.id, name: joinedTag.name };
-      });
+      
+      // Then get the tag details
+      const tagsForTask = await Promise.all(
+        taskTags.map(async (tt: any) => {
+          const [tagData] = await db
+            .select()
+            .from(tag)
+            .where(eq(tag.id, tt.tagId));
+          return { id: tagData.id, name: tagData.name };
+        })
+      );
+      
       return { ...t, tags: tagsForTask };
     })
   );
@@ -134,15 +142,20 @@ app.post("/api/tasks", zValidator("json", createTaskSchema), async (c) => {
   }
 
   // fetch attached tags for response
-  const tagRows = await db
+  const taskTags = await db
     .select()
     .from(taskTag)
-    .innerJoin(tag, eq(taskTag.tagId, tag.id))
     .where(eq(taskTag.taskId, newTask.id));
-  const tagsForTask = tagRows.map((r: any) => {
-    const joinedTag = Array.isArray(r) ? r[1] : r;
-    return { id: joinedTag.id, name: joinedTag.name };
-  });
+  
+  const tagsForTask = await Promise.all(
+    taskTags.map(async (tt: any) => {
+      const [tagData] = await db
+        .select()
+        .from(tag)
+        .where(eq(tag.id, tt.tagId));
+      return { id: tagData.id, name: tagData.name };
+    })
+  );
 
   return c.json({ task: { ...newTask, tags: tagsForTask } }, 201);
 });
@@ -189,12 +202,17 @@ app.patch("/api/tasks/:id", zValidator("json", updateTaskSchema), async (c) => {
   const tagRows = await db
     .select()
     .from(taskTag)
-    .innerJoin(tag, eq(taskTag.tagId, tag.id))
     .where(eq(taskTag.taskId, taskId));
-  const tagsForTask = tagRows.map((r: any) => {
-    const joinedTag = Array.isArray(r) ? r[1] : r;
-    return { id: joinedTag.id, name: joinedTag.name };
-  });
+  
+  const tagsForTask = await Promise.all(
+    tagRows.map(async (tt: any) => {
+      const [tagData] = await db
+        .select()
+        .from(tag)
+        .where(eq(tag.id, tt.tagId));
+      return { id: tagData.id, name: tagData.name };
+    })
+  );
 
   return c.json({ task: { ...updatedTask, tags: tagsForTask } });
 });

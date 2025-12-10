@@ -21,6 +21,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -63,11 +64,14 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { APIEndpoints } from "@/constants/api-endpoints";
+import { QueryKeys } from "@/constants/query-keys";
 import { useDeleteTaskMutation } from "@/hooks/use-delete-task-mutation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTasksQuery } from "@/hooks/use-tasks-query";
 import { useTagsQuery } from "@/hooks/use-tags-query";
 import { useUpdateTaskMutation } from "@/hooks/use-update-task-mutation";
+import { api } from "@/lib/api";
 import { FormEvent, useEffect, useState } from "react";
 
 export const taskSchema = z.object({
@@ -114,11 +118,32 @@ function formatDate(dateString: string) {
 function TaskCellViewer({ task }: { task: Task }) {
   const isMobile = useIsMobile();
   const updateMutation = useUpdateTaskMutation();
+  const { data: tagsData, isLoading: tagsLoading, error: tagsError } = useTagsQuery();
+  const [tagName, setTagName] = useState("");
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState(task.status);
   const [priority, setPriority] = useState(task.priority);
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    task.tags.map((t) => t.id) || []
+  );
   const [open, setOpen] = useState(false);
+
+  const createTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await api.post(APIEndpoints.Tags, { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Tags] });
+      setTagName("");
+      toast.success("Tag created successfully");
+    },
+    onError: () => {
+      toast.error("Failed to create tag");
+    },
+  });
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -130,6 +155,7 @@ function TaskCellViewer({ task }: { task: Task }) {
           description,
           status,
           priority,
+          tags: selectedTags,
         })
         .then(() => setOpen(false)),
       {
@@ -210,6 +236,69 @@ function TaskCellViewer({ task }: { task: Task }) {
               </Select>
             </div>
             <div className="flex flex-col gap-3">
+              <Label>Tags</Label>
+              <div className="flex flex-col gap-2">
+                {tagsLoading ? (
+                  <span className="text-sm text-muted-foreground">Loading tags...</span>
+                ) : tagsError ? (
+                  <span className="text-sm text-red-500">Error: {String(tagsError)}</span>
+                ) : tagsData?.tags && tagsData.tags.length > 0 ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {tagsData.tags.map((tag) => {
+                      const checked = selectedTags.includes(tag.id);
+                      return (
+                        <label key={tag.id} className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            value={tag.id}
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTags([...selectedTags, tag.id]);
+                              } else {
+                                setSelectedTags(selectedTags.filter((id) => id !== tag.id));
+                              }
+                            }}
+                          />
+                          <span>{tag.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No tags yet</span>
+                )}
+                <div className="flex gap-2 items-center pt-2 border-t">
+                  <Input
+                    placeholder="New tag name"
+                    value={tagName}
+                    onChange={(e) => setTagName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (tagName.trim()) {
+                          createTagMutation.mutate(tagName.trim());
+                        }
+                      }
+                    }}
+                    disabled={createTagMutation.isPending}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (tagName.trim()) {
+                        createTagMutation.mutate(tagName.trim());
+                      }
+                    }}
+                    disabled={createTagMutation.isPending || !tagName.trim()}
+                  >
+                    {createTagMutation.isPending ? "Adding..." : "Add"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
               <Label>Created At</Label>
               <div className="text-muted-foreground">
                 {formatDate(task.createdAt)}
@@ -234,11 +323,32 @@ function ActionsCell({ task }: { task: Task }) {
   const isMobile = useIsMobile();
   const deleteMutation = useDeleteTaskMutation();
   const updateMutation = useUpdateTaskMutation();
+  const { data: tagsData, isLoading: tagsLoading, error: tagsError } = useTagsQuery();
+  const [tagName, setTagName] = useState("");
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState(task.status);
   const [priority, setPriority] = useState(task.priority);
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    task.tags.map((t) => t.id) || []
+  );
   const [open, setOpen] = useState(false);
+
+  const createTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await api.post(APIEndpoints.Tags, { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Tags] });
+      setTagName("");
+      toast.success("Tag created successfully");
+    },
+    onError: () => {
+      toast.error("Failed to create tag");
+    },
+  });
 
   const handleDelete = () => {
     toast.promise(deleteMutation.mutateAsync(task.id), {
@@ -258,6 +368,7 @@ function ActionsCell({ task }: { task: Task }) {
           description,
           status,
           priority,
+          tags: selectedTags,
         })
         .then(() => setOpen(false)),
       {
@@ -358,6 +469,69 @@ function ActionsCell({ task }: { task: Task }) {
                   <SelectItem value="high">High</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Label>Tags</Label>
+              <div className="flex flex-col gap-2">
+                {tagsLoading ? (
+                  <span className="text-sm text-muted-foreground">Loading tags...</span>
+                ) : tagsError ? (
+                  <span className="text-sm text-red-500">Error: {String(tagsError)}</span>
+                ) : tagsData?.tags && tagsData.tags.length > 0 ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {tagsData.tags.map((tag) => {
+                      const checked = selectedTags.includes(tag.id);
+                      return (
+                        <label key={tag.id} className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            value={tag.id}
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTags([...selectedTags, tag.id]);
+                              } else {
+                                setSelectedTags(selectedTags.filter((id) => id !== tag.id));
+                              }
+                            }}
+                          />
+                          <span>{tag.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No tags yet</span>
+                )}
+                <div className="flex gap-2 items-center pt-2 border-t">
+                  <Input
+                    placeholder="New tag name"
+                    value={tagName}
+                    onChange={(e) => setTagName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (tagName.trim()) {
+                          createTagMutation.mutate(tagName.trim());
+                        }
+                      }
+                    }}
+                    disabled={createTagMutation.isPending}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (tagName.trim()) {
+                        createTagMutation.mutate(tagName.trim());
+                      }
+                    }}
+                    disabled={createTagMutation.isPending || !tagName.trim()}
+                  >
+                    {createTagMutation.isPending ? "Adding..." : "Add"}
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="flex flex-col gap-3">
               <Label>Created At</Label>
