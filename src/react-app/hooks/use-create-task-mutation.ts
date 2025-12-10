@@ -7,6 +7,7 @@ import z from "zod";
 export const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
+  priority: z.enum(["low", "medium", "high"]).default("medium"),
 });
 
 export type CreateTaskForm = z.infer<typeof createTaskSchema>;
@@ -16,6 +17,7 @@ const taskSchema = z.object({
   title: z.string(),
   description: z.string(),
   status: z.enum(["todo", "in_progress", "completed"]),
+  priority: z.enum(["low", "medium", "high"]),
   createdAt: z.string(),
 });
 
