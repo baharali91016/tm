@@ -74,6 +74,7 @@ export const taskSchema = z.object({
   title: z.string(),
   description: z.string(),
   status: z.enum(["todo", "in_progress", "completed"]),
+  priority: z.enum(["low", "medium", "high"]),
   createdAt: z.string(),
 });
 
@@ -114,6 +115,7 @@ function TaskCellViewer({ task }: { task: Task }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState(task.status);
+  const [priority, setPriority] = useState(task.priority);
   const [open, setOpen] = useState(false);
 
   const handleSubmit = (e: FormEvent) => {
@@ -125,6 +127,7 @@ function TaskCellViewer({ task }: { task: Task }) {
           title,
           description,
           status,
+          priority,
         })
         .then(() => setOpen(false)),
       {
@@ -189,6 +192,22 @@ function TaskCellViewer({ task }: { task: Task }) {
               </Select>
             </div>
             <div className="flex flex-col gap-3">
+              <Label htmlFor="priority">Priority</Label>
+              <Select
+                value={priority}
+                onValueChange={(value) => setPriority(value as Task["priority"])}
+              >
+                <SelectTrigger id="priority" className="w-full">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-3">
               <Label>Created At</Label>
               <div className="text-muted-foreground">
                 {formatDate(task.createdAt)}
@@ -216,6 +235,7 @@ function ActionsCell({ task }: { task: Task }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState(task.status);
+  const [priority, setPriority] = useState(task.priority);
   const [open, setOpen] = useState(false);
 
   const handleDelete = () => {
@@ -235,6 +255,7 @@ function ActionsCell({ task }: { task: Task }) {
           title,
           description,
           status,
+          priority,
         })
         .then(() => setOpen(false)),
       {
@@ -321,6 +342,22 @@ function ActionsCell({ task }: { task: Task }) {
               </Select>
             </div>
             <div className="flex flex-col gap-3">
+              <Label htmlFor={`edit-priority-${task.id}`}>Priority</Label>
+              <Select
+                value={priority}
+                onValueChange={(value) => setPriority(value as Task["priority"])}
+              >
+                <SelectTrigger id={`edit-priority-${task.id}`} className="w-full">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-3">
               <Label>Created At</Label>
               <div className="text-muted-foreground">
                 {formatDate(task.createdAt)}
@@ -376,6 +413,65 @@ function StatusCell({ task }: { task: Task }) {
   );
 }
 
+function getPriorityDisplay(priority: Task["priority"]) {
+  switch (priority) {
+    case "high":
+      return {
+        label: "High",
+        className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      };
+    case "medium":
+      return {
+        label: "Medium",
+        className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      };
+    case "low":
+      return {
+        label: "Low",
+        className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      };
+    default:
+      return {
+        label: priority,
+        className: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+      };
+  }
+}
+
+function PriorityCell({ task }: { task: Task }) {
+  const updateMutation = useUpdateTaskMutation();
+  const priorityDisplay = getPriorityDisplay(task.priority);
+
+  const handlePriorityChange = (newPriority: Task["priority"]) => {
+    toast.promise(
+      updateMutation.mutateAsync({
+        id: task.id,
+        priority: newPriority,
+      }),
+      {
+        loading: "Updating priority...",
+        success: "Priority updated",
+        error: "Failed to update priority",
+      }
+    );
+  };
+
+  return (
+    <Select value={task.priority} onValueChange={handlePriorityChange}>
+      <SelectTrigger className="w-[120px] h-8 border-transparent bg-transparent hover:bg-input/30">
+        <Badge className={`${priorityDisplay.className} px-1.5`}>
+          {priorityDisplay.label}
+        </Badge>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="low">Low</SelectItem>
+        <SelectItem value="medium">Medium</SelectItem>
+        <SelectItem value="high">High</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "title",
@@ -396,6 +492,11 @@ const columns: ColumnDef<Task>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <StatusCell task={row.original} />,
+  },
+  {
+    accessorKey: "priority",
+    header: "Priority",
+    cell: ({ row }) => <PriorityCell task={row.original} />,
   },
   {
     accessorKey: "createdAt",

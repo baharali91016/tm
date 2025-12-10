@@ -2,6 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
   createTaskSchema,
   useCreateTaskMutation,
   type CreateTaskForm,
@@ -15,17 +23,18 @@ interface CreateTaskFormProps {
 }
 
 export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
-  const form = useForm<CreateTaskForm>({
+  const form = useForm({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
       title: "",
       description: "",
+      priority: "medium",
     },
   });
 
   const { mutate, isPending } = useCreateTaskMutation();
 
-  const onSubmit = (data: CreateTaskForm) => {
+  const onSubmit = (data: any) => {
     mutate(data, {
       onSuccess: () => {
         toast.success("Task created successfully");
@@ -58,6 +67,25 @@ export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
           control={form.control}
           render={({ field }) => (
             <Textarea {...field} placeholder="Description (optional)" />
+          )}
+        />
+      </div>
+      <div>
+        <Label htmlFor="priority">Priority</Label>
+        <Controller
+          name="priority"
+          control={form.control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="priority" className="w-full">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
           )}
         />
       </div>

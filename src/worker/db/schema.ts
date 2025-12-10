@@ -57,11 +57,15 @@ export const verification = sqliteTable("verification", {
 export const taskStatusEnum = ["todo", "in_progress", "completed"] as const;
 export type TaskStatus = (typeof taskStatusEnum)[number];
 
+export const taskPriorityEnum = ["low", "medium", "high"] as const;
+export type TaskPriority = (typeof taskPriorityEnum)[number];
+
 export const task = sqliteTable("task", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
   status: text("status", { enum: taskStatusEnum }).notNull().default("todo"),
+  priority: text("priority", { enum: taskPriorityEnum }).notNull().default("medium"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

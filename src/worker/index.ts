@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { z } from "zod";
-import { task, taskStatusEnum } from "./db/schema";
+import { task, taskStatusEnum, taskPriorityEnum } from "./db/schema";
 import { getAuth } from "./lib/auth";
 import { getAuthUser } from "./lib/get-auth-user";
 
@@ -11,12 +11,14 @@ const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   status: z.enum(taskStatusEnum).optional().default("todo"),
+  priority: z.enum(taskPriorityEnum).optional().default("medium"),
 });
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
   status: z.enum(taskStatusEnum).optional(),
+  priority: z.enum(taskPriorityEnum).optional(),
 });
 
 const app = new Hono<{ Bindings: Env }>();
@@ -89,6 +91,7 @@ app.post("/api/tasks", zValidator("json", createTaskSchema), async (c) => {
     title: body.title,
     description: body.description ?? null,
     status: body.status,
+    priority: body.priority,
     userId: user.id,
     createdAt: now,
     updatedAt: now,
@@ -126,6 +129,7 @@ app.patch("/api/tasks/:id", zValidator("json", updateTaskSchema), async (c) => {
   if (body.title !== undefined) updateData.title = body.title;
   if (body.description !== undefined) updateData.description = body.description;
   if (body.status !== undefined) updateData.status = body.status;
+  if (body.priority !== undefined) updateData.priority = body.priority;
 
   await db.update(task).set(updateData).where(eq(task.id, taskId));
 
