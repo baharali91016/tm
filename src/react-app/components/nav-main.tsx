@@ -10,6 +10,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -45,6 +46,9 @@ export function NavMain({
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create Task</DialogTitle>
+                  <DialogDescription>
+                    Add a new task to your list
+                  </DialogDescription>
                 </DialogHeader>
                 <CreateTaskForm onSuccess={() => setOpen(false)} />
               </DialogContent>

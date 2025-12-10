@@ -127,14 +127,24 @@ app.post("/api/tasks", zValidator("json", createTaskSchema), async (c) => {
   };
 
   await db.insert(task).values(newTask);
-
   if (body.tags && Array.isArray(body.tags) && body.tags.length) {
     for (const tagId of body.tags) {
       await db.insert(taskTag).values({ taskId: newTask.id, tagId });
     }
   }
 
-  return c.json({ task: newTask }, 201);
+  // fetch attached tags for response
+  const tagRows = await db
+    .select()
+    .from(taskTag)
+    .innerJoin(tag, eq(taskTag.tagId, tag.id))
+    .where(eq(taskTag.taskId, newTask.id));
+  const tagsForTask = tagRows.map((r: any) => {
+    const joinedTag = Array.isArray(r) ? r[1] : r;
+    return { id: joinedTag.id, name: joinedTag.name };
+  });
+
+  return c.json({ task: { ...newTask, tags: tagsForTask } }, 201);
 });
 
 app.patch("/api/tasks/:id", zValidator("json", updateTaskSchema), async (c) => {

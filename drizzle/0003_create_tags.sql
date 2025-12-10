@@ -1,4 +1,4 @@
-CREATE TABLE `tag` (
+CREATE TABLE IF NOT EXISTS `tag` (
   `id` TEXT PRIMARY KEY NOT NULL,
   `name` TEXT NOT NULL,
   `user_id` TEXT NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE `tag` (
   FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 --> statement-breakpoint
-CREATE TABLE `task_tag` (
+CREATE TABLE IF NOT EXISTS `task_tag` (
   `task_id` TEXT NOT NULL,
   `tag_id` TEXT NOT NULL,
   FOREIGN KEY (`task_id`) REFERENCES `task`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION,

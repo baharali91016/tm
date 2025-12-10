@@ -16,7 +16,7 @@ import {
 } from "@/hooks/use-create-task-mutation";
 import { useTagsQuery } from "@/hooks/use-tags-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
 interface CreateTaskFormProps {
@@ -102,7 +102,7 @@ export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
   );
 }
 
-  function TagsSelector({ form }: { form: ReturnType<typeof useForm> }) {
+  function TagsSelector({ form }: { form: UseFormReturn<any> }) {
     const { data } = useTagsQuery();
     const tags = data?.tags ?? [];
 

@@ -66,6 +66,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDeleteTaskMutation } from "@/hooks/use-delete-task-mutation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTasksQuery } from "@/hooks/use-tasks-query";
+import { useTagsQuery } from "@/hooks/use-tags-query";
 import { useUpdateTaskMutation } from "@/hooks/use-update-task-mutation";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -75,6 +76,7 @@ export const taskSchema = z.object({
   description: z.string(),
   status: z.enum(["todo", "in_progress", "completed"]),
   priority: z.enum(["low", "medium", "high"]),
+  tags: z.array(z.object({ id: z.string(), name: z.string() })),
   createdAt: z.string(),
 });
 
@@ -499,6 +501,23 @@ const columns: ColumnDef<Task>[] = [
     cell: ({ row }) => <PriorityCell task={row.original} />,
   },
   {
+    accessorKey: "tags",
+    header: "Tags",
+    cell: ({ row }) => (
+      <div className="flex gap-1 flex-wrap">
+        {row.original.tags && row.original.tags.length > 0 ? (
+          row.original.tags.map((tag) => (
+            <Badge key={tag.id} variant="secondary" className="text-xs">
+              {tag.name}
+            </Badge>
+          ))
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </div>
+    ),
+  },
+  {
     accessorKey: "createdAt",
     header: "Created",
     cell: ({ row }) => (
@@ -515,7 +534,9 @@ const columns: ColumnDef<Task>[] = [
 
 export function DataTable() {
   const { data, isPending, isError } = useTasksQuery();
+  const { data: tagsData } = useTagsQuery();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<string>("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -524,6 +545,11 @@ export function DataTable() {
     pageSize: 10,
   });
 
+  // Filter tasks by selected tag if one is selected
+  const filteredTasks = selectedTagId && selectedTagId !== "all"
+    ? tasks.filter((t) => t.tags.some((tag) => tag.id === selectedTagId))
+    : tasks;
+
   useEffect(() => {
     if (data?.tasks) {
       setTasks(data.tasks);
@@ -531,7 +557,7 @@ export function DataTable() {
   }, [data]);
 
   const table = useReactTable({
-    data: tasks,
+    data: filteredTasks,
     columns,
     state: {
       sorting,
@@ -594,46 +620,66 @@ export function DataTable() {
       defaultValue="outline"
       className="w-full flex-col justify-start gap-6"
     >
-      <div className="flex items-center justify-between px-4 lg:px-6">
-        <Label htmlFor="view-selector" className="sr-only">
-          View
-        </Label>
-        <Select defaultValue="outline">
-          <SelectTrigger
-            className="flex w-fit @4xl/main:hidden"
-            size="sm"
-            id="view-selector"
-          >
-            <SelectValue placeholder="Select a view" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="outline">All Tasks</SelectItem>
-            <SelectItem value="todo">To Do</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-        <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">All Tasks</TabsTrigger>
-          <TabsTrigger value="todo">
-            To Do{" "}
-            <Badge variant="secondary">
-              {tasks.filter((t) => t.status === "todo").length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="in-progress">
-            In Progress{" "}
-            <Badge variant="secondary">
-              {tasks.filter((t) => t.status === "in_progress").length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed{" "}
-            <Badge variant="secondary">
-              {tasks.filter((t) => t.status === "completed").length}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex items-center justify-between gap-4 px-4 lg:px-6">
+        <div className="flex items-center gap-3">
+          <Label htmlFor="tag-filter" className="text-sm font-medium">
+            Filter by Tag:
+          </Label>
+          <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+            <SelectTrigger className="w-[180px]" id="tag-filter" size="sm">
+              <SelectValue placeholder="All Tags" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Tags</SelectItem>
+              {tagsData?.tags.map((tag) => (
+                <SelectItem key={tag.id} value={tag.id}>
+                  {tag.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="view-selector" className="sr-only">
+            View
+          </Label>
+          <Select defaultValue="outline">
+            <SelectTrigger
+              className="flex w-fit @4xl/main:hidden"
+              size="sm"
+              id="view-selector"
+            >
+              <SelectValue placeholder="Select a view" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="outline">All Tasks</SelectItem>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
+            <TabsTrigger value="outline">All Tasks</TabsTrigger>
+            <TabsTrigger value="todo">
+              To Do{" "}
+              <Badge variant="secondary">
+                {tasks.filter((t) => t.status === "todo").length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="in-progress">
+              In Progress{" "}
+              <Badge variant="secondary">
+                {tasks.filter((t) => t.status === "in_progress").length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed{" "}
+              <Badge variant="secondary">
+                {tasks.filter((t) => t.status === "completed").length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </div>
       </div>
       <TabsContent
         value="outline"
