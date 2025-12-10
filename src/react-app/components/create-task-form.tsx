@@ -14,6 +14,7 @@ import {
   useCreateTaskMutation,
   type CreateTaskForm,
 } from "@/hooks/use-create-task-mutation";
+import { useTagsQuery } from "@/hooks/use-tags-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
       title: "",
       description: "",
       priority: "medium",
+      tags: [],
     },
   });
 
@@ -89,9 +91,43 @@ export function CreateTaskForm({ onSuccess }: CreateTaskFormProps) {
           )}
         />
       </div>
+      <div>
+        <Label>Tags</Label>
+        <TagsSelector form={form} />
+      </div>
       <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "Creating..." : "Create Task"}
       </Button>
     </form>
   );
 }
+
+  function TagsSelector({ form }: { form: ReturnType<typeof useForm> }) {
+    const { data } = useTagsQuery();
+    const tags = data?.tags ?? [];
+
+    const values: string[] = form.getValues("tags") ?? [];
+
+    return (
+      <div className="flex gap-2 flex-wrap">
+        {tags.map((t) => {
+          const checked = values.includes(t.id);
+          return (
+            <label key={t.id} className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                value={t.id}
+                checked={checked}
+                onChange={(e) => {
+                  const selected = form.getValues("tags") ?? [];
+                  if (e.target.checked) form.setValue("tags", [...selected, t.id]);
+                  else form.setValue("tags", selected.filter((id: string) => id !== t.id));
+                }}
+              />
+              <span>{t.name}</span>
+            </label>
+          );
+        })}
+      </div>
+    );
+  }

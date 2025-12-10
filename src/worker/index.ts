@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { z } from "zod";
-import { task, taskStatusEnum, taskPriorityEnum } from "./db/schema";
+import { task, taskStatusEnum, taskPriorityEnum, tag, taskTag } from "./db/schema";
 import { getAuth } from "./lib/auth";
 import { getAuthUser } from "./lib/get-auth-user";
 
@@ -12,6 +12,7 @@ const createTaskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(taskStatusEnum).optional().default("todo"),
   priority: z.enum(taskPriorityEnum).optional().default("medium"),
+  tags: z.array(z.string()).optional(),
 });
 
 const updateTaskSchema = z.object({
@@ -19,6 +20,7 @@ const updateTaskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(taskStatusEnum).optional(),
   priority: z.enum(taskPriorityEnum).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 const app = new Hono<{ Bindings: Env }>();
@@ -50,9 +52,36 @@ app.get("/api/tasks", async (c) => {
   }
 
   const db = drizzle(c.env.DB);
-  const tasks = await db.select().from(task).where(eq(task.userId, user.id));
+  const tagFilter = c.req.query("tag");
+  let tasks;
+  if (tagFilter) {
+    const rows = await db
+      .select()
+      .from(task)
+      .innerJoin(taskTag, eq(task.id, taskTag.taskId))
+      .where(and(eq(task.userId, user.id), eq(taskTag.tagId, tagFilter)));
+    // rows may be tuples depending on drizzle version; map to first element if needed
+    tasks = rows.map((r: any) => (Array.isArray(r) ? r[0] : r));
+  } else {
+    tasks = await db.select().from(task).where(eq(task.userId, user.id));
+  }
 
-  return c.json({ tasks });
+  const tasksWithTags = await Promise.all(
+    tasks.map(async (t: any) => {
+      const tagRows = await db
+        .select()
+        .from(taskTag)
+        .innerJoin(tag, eq(taskTag.tagId, tag.id))
+        .where(eq(taskTag.taskId, t.id));
+      const tagsForTask = tagRows.map((r: any) => {
+        const joinedTag = Array.isArray(r) ? r[1] : r;
+        return { id: joinedTag.id, name: joinedTag.name };
+      });
+      return { ...t, tags: tagsForTask };
+    })
+  );
+
+  return c.json({ tasks: tasksWithTags });
 });
 
 app.get("/api/tasks/:id", async (c) => {
@@ -99,6 +128,12 @@ app.post("/api/tasks", zValidator("json", createTaskSchema), async (c) => {
 
   await db.insert(task).values(newTask);
 
+  if (body.tags && Array.isArray(body.tags) && body.tags.length) {
+    for (const tagId of body.tags) {
+      await db.insert(taskTag).values({ taskId: newTask.id, tagId });
+    }
+  }
+
   return c.json({ task: newTask }, 201);
 });
 
@@ -132,11 +167,56 @@ app.patch("/api/tasks/:id", zValidator("json", updateTaskSchema), async (c) => {
   if (body.priority !== undefined) updateData.priority = body.priority;
 
   await db.update(task).set(updateData).where(eq(task.id, taskId));
+  if (body.tags) {
+    await db.delete(taskTag).where(eq(taskTag.taskId, taskId));
+    for (const tagId of body.tags) {
+      await db.insert(taskTag).values({ taskId, tagId });
+    }
+  }
 
   const [updatedTask] = await db.select().from(task).where(eq(task.id, taskId));
 
-  return c.json({ task: updatedTask });
+  const tagRows = await db
+    .select()
+    .from(taskTag)
+    .innerJoin(tag, eq(taskTag.tagId, tag.id))
+    .where(eq(taskTag.taskId, taskId));
+  const tagsForTask = tagRows.map((r: any) => {
+    const joinedTag = Array.isArray(r) ? r[1] : r;
+    return { id: joinedTag.id, name: joinedTag.name };
+  });
+
+  return c.json({ task: { ...updatedTask, tags: tagsForTask } });
 });
+
+// Tags endpoints
+app.get("/api/tags", async (c) => {
+  const user = await getAuthUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const db = drizzle(c.env.DB);
+  const tags = await db.select().from(tag).where(eq(tag.userId, user.id));
+  return c.json({ tags });
+});
+
+app.post(
+  "/api/tags",
+  zValidator(
+    "json",
+    z.object({
+      name: z.string().min(1),
+    })
+  ),
+  async (c) => {
+    const user = await getAuthUser(c);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+    const body = c.req.valid("json");
+    const db = drizzle(c.env.DB);
+    const now = new Date();
+    const newTag = { id: crypto.randomUUID(), name: body.name, userId: user.id, createdAt: now };
+    await db.insert(tag).values(newTag);
+    return c.json({ tag: newTag }, 201);
+  }
+);
 
 app.delete("/api/tasks/:id", async (c) => {
   const user = await getAuthUser(c);

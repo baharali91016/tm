@@ -10,6 +10,7 @@ const taskSchema = z.object({
   description: z.string(),
   status: z.enum(["todo", "in_progress", "completed"]),
   priority: z.enum(["low", "medium", "high"]),
+  tags: z.array(z.object({ id: z.string(), name: z.string() })),
   createdAt: z.string(),
 });
 
@@ -23,6 +24,7 @@ export const updateTaskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["todo", "in_progress", "completed"]).optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export type UpdateTaskForm = z.infer<typeof updateTaskSchema>;

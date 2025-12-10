@@ -72,3 +72,15 @@ export const task = sqliteTable("task", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const tag = sqliteTable("tag", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+export const taskTag = sqliteTable("task_tag", {
+  taskId: text("task_id").notNull().references(() => task.id, { onDelete: "cascade" }),
+  tagId: text("tag_id").notNull().references(() => tag.id, { onDelete: "cascade" }),
+});
