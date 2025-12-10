@@ -52,7 +52,7 @@ function LandingPage() {
               <Link to="/login">Sign In</Link>
             </Button>
             <Button asChild>
-              <Link to="/sign-up">Get Started</Link>
+              <Link to="/sign-up">Let's Get Started</Link>
             </Button>
           </div>
         </div>
